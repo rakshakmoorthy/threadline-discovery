@@ -8,6 +8,7 @@ import json
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -20,6 +21,38 @@ BASE = Path(__file__).parent
 
 app = FastAPI(title="Threadline Discovery")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
+
+LABELS = {
+    "connect.mayoclinic.org": "Mayo Clinic Connect",
+    "community.breastcancer.org": "Breastcancer.org",
+    "forum.breastcancernow.org": "Breast Cancer Now",
+    "community.macmillan.org.uk": "Macmillan",
+    "onlinenetwork.bcna.org.au": "BCNA",
+    "csn.cancer.org": "ACS CSN",
+}
+
+
+def build_index():
+    """Write static/signals_index.json: signal ids grouped by source thread.
+    It holds no comment text, so it is safe to publish and powers the signal map."""
+    src = BASE / "data" / "signals.json"
+    if not src.exists():
+        return
+    try:
+        signals = json.loads(src.read_text(encoding="utf-8"))
+        threads = {}
+        for s in signals:
+            url = s.get("url", "unknown")
+            host = urlparse(url).netloc.lower()
+            t = threads.setdefault(url, {"url": url, "label": LABELS.get(host, host or "other"), "ids": []})
+            t["ids"].append(s["id"])
+        out = {"signal_count": len(signals), "threads": list(threads.values())}
+        (BASE / "static" / "signals_index.json").write_text(json.dumps(out), encoding="utf-8")
+    except Exception as e:
+        print("could not build signals index:", e)
+
+
+build_index()
 
 COOLDOWN_SECONDS = 300  # protects API credits from repeated clicks
 _lock = threading.Lock()
@@ -34,6 +67,7 @@ def _progress(stage, message, pct):
 def _worker():
     try:
         pipeline.run(progress=_progress)
+        build_index()
         _state.update(status="done", stage="done", pct=100, error=None)
     except Exception as e:  # keep the last good results.json in place
         _state.update(status="error", error=str(e)[:300])
