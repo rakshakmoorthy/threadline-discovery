@@ -1,5 +1,6 @@
 .env
 .venv/
 __pycache__/
-data/
-results.json
+.DS_Store
+data/*
+!data/signals_public.json

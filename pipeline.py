@@ -24,12 +24,16 @@ from openai import OpenAI
 load_dotenv()
 
 BASE = Path(__file__).parent
-SIGNALS_PATH = BASE / "data" / "signals.json"
+SIGNALS_PATH = BASE / "data" / "signals_public.json"
 RESULTS_PATH = BASE / "results.json"
 CONCEPT_DIR = BASE / "static" / "concepts"
 
 TEXT_MODEL = "muse-spark-1.3"
 IMAGE_MODEL = "muse-image-1.0"
+OPEN_MODEL = "meta-models/muse-spark-open-1026"   # open-weight Muse model, hosted by Baseten
+OPEN_BASE_URL = "https://inference.baseten.co/v1"
+OPEN_MAX_TOKENS = 6000    # Muse Spark Open always reasons, so leave room for the final answer
+OPEN_REASONING = "medium"
 CONDITION = "post-mastectomy"
 MAX_OPPS = 6          # opportunities the proposer may return
 MAX_IMAGES = 6        # concept visuals generated per run (top ranked)
@@ -161,9 +165,49 @@ def ask(system, user, name, schema, retries=2, image_data_url=None):
             return _extract_json(r.choices[0].message.content)
         except Exception as e:  # network, schema, or parse problem
             last = e
-            print(f"  retry {attempt + 1}/{retries}: {str(e)[:140]}", flush=True)
+            print(f"  retry {attempt + 1}/{retries + 1}: {str(e)[:140]}", flush=True)
             time.sleep(1.5 * (attempt + 1))
     raise RuntimeError(f"model call '{name}' failed: {last}")
+
+
+_open_client = None
+
+
+def open_client():
+    """Client for Muse Spark Open on Baseten, or None when BASETEN_API_KEY is not set."""
+    global _open_client
+    if _open_client is None and os.environ.get("BASETEN_API_KEY"):
+        _open_client = OpenAI(base_url=OPEN_BASE_URL, api_key=os.environ["BASETEN_API_KEY"])
+    return _open_client
+
+
+def ask_open(system, user, name, schema, required, retries=2):
+    """Call Muse Spark Open (open weights) through Baseten partner inference.
+    The model always reasons and does not enforce JSON schemas, so the prompt demands
+    JSON, the reply is validated, and each retry allows more tokens for reasoning."""
+    hint = (system + "\nReply with ONLY a JSON object matching this schema, no prose and "
+            "no code fences: " + json.dumps(schema))
+    last = None
+    for attempt in range(retries + 1):
+        try:
+            r = open_client().chat.completions.create(
+                model=OPEN_MODEL,
+                messages=[{"role": "system", "content": hint},
+                          {"role": "user", "content": user}],
+                max_tokens=OPEN_MAX_TOKENS * (attempt + 1),
+                temperature=0.2,
+                extra_body={"reasoning_effort": OPEN_REASONING},
+            )
+            data = _extract_json(r.choices[0].message.content)
+            missing = [k for k in required if k not in data]
+            if missing:
+                raise ValueError("reply is missing " + ", ".join(missing))
+            return data
+        except Exception as e:
+            last = e
+            print(f"  open-weight retry {attempt + 1}/{retries + 1}: {str(e)[:140]}", flush=True)
+            time.sleep(1.5 * (attempt + 1))
+    raise RuntimeError(f"open-weight call '{name}' failed: {last}")
 
 
 def load_signals():
@@ -299,44 +343,91 @@ def visualize(opp, rank):
 # ---------- main run ----------
 
 def run(progress=None, with_images=True):
-    def step(stage, msg, pct):
+    events = []  # structured trace of the run, saved with the results and streamed live
+
+    def step(stage, msg, pct, event=None):
         print(f"[{stage}] {msg}", flush=True)
+        if event is not None:
+            events.append(event)
         if progress:
-            progress(stage, msg, pct)
+            progress(stage, msg, pct, event)
 
     signals = load_signals()
     by_id = {s["id"]: s for s in signals}
     thread_count = len({s["url"] for s in signals})
-    step("propose", f"Muse Spark is reading {len(signals)} signals", 8)
+    step("propose", f"Muse Spark is reading {len(signals)} signals", 8,
+         {"type": "reading", "signals": len(signals), "threads": thread_count})
     listing = "\n".join(f'[{s["id"]}] {s["text"]}' for s in signals)
     gen = ask(GEN_SYSTEM,
               f"Condition: {CONDITION}.\nReturn up to {MAX_OPPS} distinct opportunities.\n\n"
               f"Signals:\n{listing}", "opportunities", GEN_SCHEMA)
     proposed = gen.get("opportunities", [])[:MAX_OPPS]
+    step("propose", f"Muse Spark proposed {len(proposed)} ideas", 14,
+         {"type": "proposed", "count": len(proposed),
+          "ideas": [{"title": o["title"], "features": o.get("required_features", [])} for o in proposed]})
 
     verified, rejected = [], []
+    compared = agreed = 0
+    use_open = open_client() is not None
     for k, opp in enumerate(proposed, 1):
-        step("verify", f"Challenging opportunity {k} of {len(proposed)}", 15 + int(45 * k / max(len(proposed), 1)))
+        label = " with Muse Spark Open on Baseten" if use_open else ""
+        step("verify", f"Challenging opportunity {k} of {len(proposed)}{label}",
+             15 + int(45 * k / max(len(proposed), 1)))
         cited = [by_id[i] for i in dict.fromkeys(opp.get("evidence_ids", [])) if i in by_id]
         if not cited:
             rejected.append({"title": opp["title"], "reason": "No valid evidence was cited.",
                              "evidence_count": 0})
+            step("verify", f"Rejected '{opp['title']}': no valid evidence", 15,
+                 {"type": "verdict", "title": opp["title"], "kept": False, "model": None,
+                  "confidence": 0, "reason": "No valid evidence was cited."})
             continue
         cited_text = "\n".join(f'[{s["id"]}] {s["text"]}' for s in cited)
-        v = ask(VERIFY_SYSTEM,
-                f"Opportunity title: {opp['title']}\nPain point: {opp['pain_point']}\n"
-                f"Unmet need: {opp['unmet_need']}\nConcept: {opp['concept']}\n"
-                f"Required features: {'; '.join(opp['required_features'])}\n\n"
-                f"Cited signals:\n{cited_text}",
-                "verification", VERIFY_SCHEMA)
-        score, parts, n, threads = compute_score(opp, by_id, int(v["confidence"]))
-        if not v["supported"]:
-            rejected.append({"title": opp["title"], "reason": v["reason"], "evidence_count": n})
+        user_msg = (
+            f"Opportunity title: {opp['title']}\nPain point: {opp['pain_point']}\n"
+            f"Unmet need: {opp['unmet_need']}\nConcept: {opp['concept']}\n"
+            f"Required features: {'; '.join(opp['required_features'])}\n\n"
+            f"Cited signals:\n{cited_text}")
+        # first opinion: Muse Spark through Meta Model API
+        v_self = ask(VERIFY_SYSTEM, user_msg, "verification", VERIFY_SCHEMA)
+        self_check = {"supported": bool(v_self["supported"]),
+                      "confidence": int(v_self["confidence"]), "reason": str(v_self["reason"])}
+        # independent opinion: Muse Spark Open (open weights) on Baseten
+        v_open = None
+        if use_open:
+            try:
+                raw = ask_open(VERIFY_SYSTEM, user_msg, "verification", VERIFY_SCHEMA,
+                               ["supported", "confidence", "reason"])
+                v_open = {"supported": bool(raw["supported"]),
+                          "confidence": int(raw["confidence"]), "reason": str(raw["reason"])}
+            except Exception as e:
+                print("  open-weight verifier unavailable, using Muse Spark verdict:",
+                      str(e)[:140], flush=True)
+        final = v_open or self_check
+        final_model = OPEN_MODEL if v_open else TEXT_MODEL
+        agrees = None
+        if v_open:
+            compared += 1
+            agrees = v_open["supported"] == self_check["supported"]
+            agreed += int(agrees)
+        score, parts, n, threads = compute_score(opp, by_id, final["confidence"])
+        record = {"model": final_model, "confidence": final["confidence"],
+                  "reason": final["reason"], "self_check": self_check if v_open else None,
+                  "agrees": agrees}
+        verdict = {"type": "verdict", "title": opp["title"], "kept": bool(final["supported"]),
+                   "model": final_model, "confidence": final["confidence"], "reason": final["reason"],
+                   "self_supported": self_check["supported"] if v_open else None, "agrees": agrees,
+                   "evidence": n}
+        step("verify", f"{'Kept' if final['supported'] else 'Rejected'}: {opp['title']}",
+             15 + int(45 * k / max(len(proposed), 1)), verdict)
+        if not final["supported"]:
+            rejected.append({"title": opp["title"], "reason": final["reason"], "evidence_count": n,
+                             "verifier_model": final_model,
+                             "self_check": self_check if v_open else None, "agrees": agrees})
             continue
         opp.update({
             "score": score, "score_parts": parts,
             "evidence_count": n, "thread_count": threads,
-            "verifier": {"confidence": int(v["confidence"]), "reason": v["reason"]},
+            "verifier": record,
             "evidence": [{"id": s["id"], "text": s["text"], "url": s["url"]} for s in cited],
         })
         verified.append(opp)
@@ -350,11 +441,24 @@ def run(progress=None, with_images=True):
         for opp in verified[:MAX_IMAGES]:
             step("visualize", f"Muse Image is drawing concept {opp['rank']}", 62 + 6 * opp["rank"])
             opp["visual"] = visualize(opp, opp["rank"])
+            fc = (opp["visual"] or {}).get("feature_check") or {}
+            step("visualize", f"Drew concept {opp['rank']}", 62 + 6 * opp["rank"],
+                 {"type": "image", "rank": opp["rank"], "title": opp["title"],
+                  "ok": bool(opp["visual"]), "all_visible": bool(fc.get("all_visible")),
+                  "attempts": fc.get("attempts", 1)})
 
+    step("done", f"{len(verified)} of {len(proposed)} opportunities survived verification", 100,
+         {"type": "done", "proposed": len(proposed), "verified": len(verified),
+          "rejected": len(rejected)})
     out = {
+        "trace": events,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "condition": CONDITION,
-        "models": {"text_and_vision": TEXT_MODEL, "image": IMAGE_MODEL},
+        "models": {"text_and_vision": TEXT_MODEL, "image": IMAGE_MODEL,
+                   "open_weights_verifier": OPEN_MODEL if use_open else None},
+        "cross_check": {"enabled": use_open, "model": OPEN_MODEL if use_open else None,
+                        "provider": "Baseten" if use_open else None,
+                        "compared": compared, "agreed": agreed},
         "signal_count": len(signals),
         "thread_count": thread_count,
         "proposed_count": len(proposed),
@@ -367,7 +471,6 @@ def run(progress=None, with_images=True):
     tmp = RESULTS_PATH.with_suffix(".tmp")
     tmp.write_text(json.dumps(out, indent=2))
     os.replace(tmp, RESULTS_PATH)
-    step("done", f"{len(verified)} of {len(proposed)} opportunities survived verification", 100)
     return out
 
 

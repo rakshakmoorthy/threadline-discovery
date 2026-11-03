@@ -35,7 +35,7 @@ LABELS = {
 def build_index():
     """Write static/signals_index.json: signal ids grouped by source thread.
     It holds no comment text, so it is safe to publish and powers the signal map."""
-    src = BASE / "data" / "signals.json"
+    src = BASE / "data" / "signals_public.json"
     if not src.exists():
         return
     try:
@@ -57,11 +57,13 @@ build_index()
 COOLDOWN_SECONDS = 300  # protects API credits from repeated clicks
 _lock = threading.Lock()
 _last_start = 0.0
-_state = {"status": "idle", "stage": "", "message": "", "pct": 0, "error": None}
+_state = {"status": "idle", "stage": "", "message": "", "pct": 0, "error": None, "events": []}
 
 
-def _progress(stage, message, pct):
+def _progress(stage, message, pct, event=None):
     _state.update(stage=stage, message=message, pct=pct)
+    if event is not None:
+        _state["events"].append(event)
 
 
 def _worker():
@@ -103,6 +105,6 @@ def run_analysis():
             return JSONResponse({"error": f"Please wait {wait}s before running again.",
                                  "cooldown": wait}, status_code=429)
         _last_start = time.time()
-        _state.update(status="running", stage="propose", message="Starting", pct=2, error=None)
+        _state.update(status="running", stage="propose", message="Starting", pct=2, error=None, events=[])
     threading.Thread(target=_worker, daemon=True).start()
     return {"started": True}

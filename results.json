@@ -1,0 +1,542 @@
+{
+  "trace": [
+    {
+      "type": "reading",
+      "signals": 43,
+      "threads": 6
+    },
+    {
+      "type": "proposed",
+      "count": 6,
+      "ideas": [
+        {
+          "title": "Loose Front-Closing Shirt with Interior Pockets",
+          "features": [
+            "front closure",
+            "interior pockets",
+            "loose silhouette"
+          ]
+        },
+        {
+          "title": "Seatbelt Cushion Pad for Driving",
+          "features": [
+            "cushion panel",
+            "seatbelt loop"
+          ]
+        },
+        {
+          "title": "Front-Closing Sports Bra with Insert Pockets",
+          "features": [
+            "front closure",
+            "insert pockets"
+          ]
+        },
+        {
+          "title": "Short Seamless Cropped Vest",
+          "features": [
+            "seamless panels",
+            "crop length",
+            "high side cut"
+          ]
+        },
+        {
+          "title": "Loose High-Collar Swim Top with Sewn-In Cups",
+          "features": [
+            "high collar",
+            "sewn-in cups",
+            "loose silhouette"
+          ]
+        },
+        {
+          "title": "Loose Pull-On Pants Without Fasteners",
+          "features": [
+            "pull-on waistband",
+            "loose leg cut"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "verdict",
+      "title": "Loose Front-Closing Shirt with Interior Pockets",
+      "kept": true,
+      "model": "muse-spark-1.3",
+      "confidence": 9,
+      "reason": "Signal [11] directly states want for loose front-closing shirts with interior pockets to secure drains and prevent painful movement, covering pain point, unmet need, and all three required features; [6] and [10] corroborate pockets for drains.",
+      "self_supported": null,
+      "agrees": null,
+      "evidence": 3
+    },
+    {
+      "type": "verdict",
+      "title": "Seatbelt Cushion Pad for Driving",
+      "kept": false,
+      "model": "muse-spark-1.3",
+      "confidence": 3,
+      "reason": "required_features check failed: 'seatbelt loop' is not traceable \u2013 signals only mention soft chest protection/cushion to ease seatbelt discomfort/pressure, with no mention of a loop or attachment.",
+      "self_supported": null,
+      "agrees": null,
+      "evidence": 2
+    },
+    {
+      "type": "verdict",
+      "title": "Front-Closing Sports Bra with Insert Pockets",
+      "kept": true,
+      "model": "muse-spark-1.3",
+      "confidence": 9,
+      "reason": "[35] states prosthesis heavy and unstable because bras fail to hold securely and [37] confirms form weighty and unstable inside garment pocket supporting pain_point; [26] directly values front-closing sports bra holding inserts securely supporting unmet_need and both front closure and insert pockets.",
+      "self_supported": null,
+      "agrees": null,
+      "evidence": 3
+    },
+    {
+      "type": "verdict",
+      "title": "Short Seamless Cropped Vest",
+      "kept": true,
+      "model": "muse-spark-1.3",
+      "confidence": 9,
+      "reason": "Strongest support is [46] liking seamless vests cut high under arms but wishing they were shorter, directly covering seamless, high side cut, and crop/short length, with [44] confirming side-seam discomfort and [42] preferring seamless crop styles.",
+      "self_supported": null,
+      "agrees": null,
+      "evidence": 3
+    },
+    {
+      "type": "verdict",
+      "title": "Loose High-Collar Swim Top with Sewn-In Cups",
+      "kept": true,
+      "model": "muse-spark-1.3",
+      "confidence": 10,
+      "reason": "Pain point matches [22] heavy inserts make pulling up challenging and [24] necklines avoid exposing unnatural cleavage; unmet need and all features directly match [25] loose high-neck swim tops with cups sewn in skipping separate inserts.",
+      "self_supported": null,
+      "agrees": null,
+      "evidence": 3
+    },
+    {
+      "type": "verdict",
+      "title": "Loose Pull-On Pants Without Fasteners",
+      "kept": true,
+      "model": "muse-spark-1.3",
+      "confidence": 8,
+      "reason": "[13] directly states loose pants that slide easily without fasteners, covering the unmet_need and both required features, while [15] states avoiding bending during early recovery for footwear, covering the bending part of the pain_point.",
+      "self_supported": null,
+      "agrees": null,
+      "evidence": 2
+    },
+    {
+      "type": "image",
+      "rank": 1,
+      "title": "Loose Front-Closing Shirt with Interior Pockets",
+      "ok": true,
+      "all_visible": true,
+      "attempts": 1
+    },
+    {
+      "type": "image",
+      "rank": 2,
+      "title": "Front-Closing Sports Bra with Insert Pockets",
+      "ok": true,
+      "all_visible": true,
+      "attempts": 1
+    },
+    {
+      "type": "image",
+      "rank": 3,
+      "title": "Short Seamless Cropped Vest",
+      "ok": true,
+      "all_visible": false,
+      "attempts": 2
+    },
+    {
+      "type": "image",
+      "rank": 4,
+      "title": "Loose High-Collar Swim Top with Sewn-In Cups",
+      "ok": true,
+      "all_visible": false,
+      "attempts": 2
+    },
+    {
+      "type": "image",
+      "rank": 5,
+      "title": "Loose Pull-On Pants Without Fasteners",
+      "ok": true,
+      "all_visible": true,
+      "attempts": 1
+    },
+    {
+      "type": "done",
+      "proposed": 6,
+      "verified": 5,
+      "rejected": 1
+    }
+  ],
+  "generated_at": "2026-11-03T17:53:51+00:00",
+  "condition": "post-mastectomy",
+  "models": {
+    "text_and_vision": "muse-spark-1.3",
+    "image": "muse-image-1.0",
+    "open_weights_verifier": null
+  },
+  "cross_check": {
+    "enabled": false,
+    "model": null,
+    "provider": null,
+    "compared": 0,
+    "agreed": 0
+  },
+  "signal_count": 43,
+  "thread_count": 6,
+  "proposed_count": 6,
+  "verified_count": 5,
+  "rejected_count": 1,
+  "score_weights": {
+    "evidence": 40,
+    "sources": 30,
+    "verifier": 30
+  },
+  "opportunities": [
+    {
+      "concept": "A loose front-closing shirt with interior pockets.",
+      "evidence_ids": [
+        6,
+        10,
+        11
+      ],
+      "pain_point": "Drains shift painfully and exterior bags get in the way.",
+      "required_features": [
+        "front closure",
+        "interior pockets",
+        "loose silhouette"
+      ],
+      "title": "Loose Front-Closing Shirt with Interior Pockets",
+      "unmet_need": "A comfortable shirt that secures bags inside pockets.",
+      "score": 67,
+      "score_parts": {
+        "evidence": 20,
+        "sources": 20,
+        "verifier": 27
+      },
+      "evidence_count": 3,
+      "thread_count": 2,
+      "verifier": {
+        "model": "muse-spark-1.3",
+        "confidence": 9,
+        "reason": "Signal [11] directly states want for loose front-closing shirts with interior pockets to secure drains and prevent painful movement, covering pain point, unmet need, and all three required features; [6] and [10] corroborate pockets for drains.",
+        "self_check": null,
+        "agrees": null
+      },
+      "evidence": [
+        {
+          "id": 6,
+          "text": "One patient values recovery tops with built-in pockets for holding surgical drains.",
+          "url": "https://connect.mayoclinic.org/comment/1559547/"
+        },
+        {
+          "id": 10,
+          "text": "One patient stores drainage bags in interior jacket pockets instead of using a lanyard.",
+          "url": "https://connect.mayoclinic.org/comment/1559547/"
+        },
+        {
+          "id": 11,
+          "text": "One patient wants loose front-closing shirts with interior pockets to secure drains and prevent painful movement.",
+          "url": "https://community.breastcancer.org/forum/82/topics/858805"
+        }
+      ],
+      "rank": 1,
+      "visual": {
+        "image": "/static/concepts/concept-1.webp?v=1793728241",
+        "feature_check": {
+          "features": [
+            {
+              "name": "front closure",
+              "visible": true
+            },
+            {
+              "name": "interior pockets",
+              "visible": true
+            },
+            {
+              "name": "loose silhouette",
+              "visible": true
+            }
+          ],
+          "all_visible": true,
+          "attempts": 1
+        }
+      }
+    },
+    {
+      "concept": "A front-closing sports bra with pockets for inserts.",
+      "evidence_ids": [
+        26,
+        35,
+        37
+      ],
+      "pain_point": "Forms feel heavy and shift because pockets fail to hold them securely.",
+      "required_features": [
+        "front closure",
+        "insert pockets"
+      ],
+      "title": "Front-Closing Sports Bra with Insert Pockets",
+      "unmet_need": "A front-closing bra that holds inserts securely in pockets.",
+      "score": 67,
+      "score_parts": {
+        "evidence": 20,
+        "sources": 20,
+        "verifier": 27
+      },
+      "evidence_count": 3,
+      "thread_count": 2,
+      "verifier": {
+        "model": "muse-spark-1.3",
+        "confidence": 9,
+        "reason": "[35] states prosthesis heavy and unstable because bras fail to hold securely and [37] confirms form weighty and unstable inside garment pocket supporting pain_point; [26] directly values front-closing sports bra holding inserts securely supporting unmet_need and both front closure and insert pockets.",
+        "self_check": null,
+        "agrees": null
+      },
+      "evidence": [
+        {
+          "id": 26,
+          "text": "One patient values a front-closing sports bra that holds inserts securely and comfortably.",
+          "url": "https://community.breastcancer.org/en/discussion/882933/prosthetic-fit-in-normal-sports-bras-and-bathing-suits"
+        },
+        {
+          "id": 35,
+          "text": "One patient finds their prosthesis heavy and unstable because bras fail to hold it securely.",
+          "url": "https://community.macmillan.org.uk/cancer_types/breast-cancer-forum/f/new-here-say-hello/232754/new-to-the-group"
+        },
+        {
+          "id": 37,
+          "text": "One patient finds their breast form weighty and unstable inside the garment pocket.",
+          "url": "https://community.macmillan.org.uk/cancer_types/breast-cancer-forum/f/new-here-say-hello/232754/new-to-the-group"
+        }
+      ],
+      "rank": 2,
+      "visual": {
+        "image": "/static/concepts/concept-2.webp?v=1793728254",
+        "feature_check": {
+          "features": [
+            {
+              "name": "front closure",
+              "visible": true
+            },
+            {
+              "name": "insert pockets",
+              "visible": true
+            }
+          ],
+          "all_visible": true,
+          "attempts": 1
+        }
+      }
+    },
+    {
+      "concept": "A short seamless cropped vest.",
+      "evidence_ids": [
+        42,
+        46,
+        44
+      ],
+      "pain_point": "Seams and side seams irritate skin and longer lengths feel cumbersome.",
+      "required_features": [
+        "seamless panels",
+        "crop length",
+        "high side cut"
+      ],
+      "title": "Short Seamless Cropped Vest",
+      "unmet_need": "A short seamless vest with high cuts and no irritating seams.",
+      "score": 67,
+      "score_parts": {
+        "evidence": 20,
+        "sources": 20,
+        "verifier": 27
+      },
+      "evidence_count": 3,
+      "thread_count": 2,
+      "verifier": {
+        "model": "muse-spark-1.3",
+        "confidence": 9,
+        "reason": "Strongest support is [46] liking seamless vests cut high under arms but wishing they were shorter, directly covering seamless, high side cut, and crop/short length, with [44] confirming side-seam discomfort and [42] preferring seamless crop styles.",
+        "self_check": null,
+        "agrees": null
+      },
+      "evidence": [
+        {
+          "id": 42,
+          "text": "One patient prefers soft seamless crop style bras and accepts less support for greater comfort.",
+          "url": "https://forum.breastcancernow.org/t/comfortable-bra-2-months-after-surgery/39423"
+        },
+        {
+          "id": 46,
+          "text": "One patient likes seamless soft cotton vests cut high under arms but wishes they were shorter.",
+          "url": "https://forum.breastcancernow.org/t/protecting-post-surgery-skin-from-seams/141411"
+        },
+        {
+          "id": 44,
+          "text": "One patient finds top side seams uncomfortable when braless indoors during hot weather.",
+          "url": "https://forum.breastcancernow.org/t/protecting-post-surgery-skin-from-seams/141411"
+        }
+      ],
+      "rank": 3,
+      "visual": {
+        "image": "/static/concepts/concept-3.webp?v=1793728316",
+        "feature_check": {
+          "features": [
+            {
+              "name": "seamless panels",
+              "visible": false
+            },
+            {
+              "name": "crop length",
+              "visible": true
+            },
+            {
+              "name": "high side cut",
+              "visible": true
+            }
+          ],
+          "all_visible": false,
+          "attempts": 2
+        }
+      }
+    },
+    {
+      "concept": "A loose swim top with a high collar and cups sewn in.",
+      "evidence_ids": [
+        24,
+        25,
+        22
+      ],
+      "pain_point": "Heavy inserts make swimwear hard to pull on and low necklines expose appearance.",
+      "required_features": [
+        "high collar",
+        "sewn-in cups",
+        "loose silhouette"
+      ],
+      "title": "Loose High-Collar Swim Top with Sewn-In Cups",
+      "unmet_need": "A loose high swim top with built-in cups that needs no separate inserts.",
+      "score": 60,
+      "score_parts": {
+        "evidence": 20,
+        "sources": 10,
+        "verifier": 30
+      },
+      "evidence_count": 3,
+      "thread_count": 1,
+      "verifier": {
+        "model": "muse-spark-1.3",
+        "confidence": 10,
+        "reason": "Pain point matches [22] heavy inserts make pulling up challenging and [24] necklines avoid exposing unnatural cleavage; unmet need and all features directly match [25] loose high-neck swim tops with cups sewn in skipping separate inserts.",
+        "self_check": null,
+        "agrees": null
+      },
+      "evidence": [
+        {
+          "id": 24,
+          "text": "One patient needs swimwear necklines that avoid exposing an unnatural cleavage appearance.",
+          "url": "https://community.breastcancer.org/en/discussion/882933/prosthetic-fit-in-normal-sports-bras-and-bathing-suits"
+        },
+        {
+          "id": 25,
+          "text": "One patient prefers loose high-neck swim tops with cups sewn in for gentle shape, skipping separate inserts.",
+          "url": "https://community.breastcancer.org/en/discussion/882933/prosthetic-fit-in-normal-sports-bras-and-bathing-suits"
+        },
+        {
+          "id": 22,
+          "text": "One patient finds heavy swim inserts make pulling up swimwear very challenging.",
+          "url": "https://community.breastcancer.org/en/discussion/882933/prosthetic-fit-in-normal-sports-bras-and-bathing-suits"
+        }
+      ],
+      "rank": 4,
+      "visual": {
+        "image": "/static/concepts/concept-4.webp?v=1793728408",
+        "feature_check": {
+          "features": [
+            {
+              "name": "high collar",
+              "visible": true
+            },
+            {
+              "name": "sewn-in cups",
+              "visible": false
+            },
+            {
+              "name": "loose silhouette",
+              "visible": true
+            }
+          ],
+          "all_visible": false,
+          "attempts": 2
+        }
+      }
+    },
+    {
+      "concept": "A pair of loose pull-on pants without fasteners.",
+      "evidence_ids": [
+        13,
+        15
+      ],
+      "pain_point": "Bending to manage fasteners and footwear is hard in early recovery.",
+      "required_features": [
+        "pull-on waistband",
+        "loose leg cut"
+      ],
+      "title": "Loose Pull-On Pants Without Fasteners",
+      "unmet_need": "Pants that slide on easily without fasteners or bending.",
+      "score": 47,
+      "score_parts": {
+        "evidence": 13,
+        "sources": 10,
+        "verifier": 24
+      },
+      "evidence_count": 2,
+      "thread_count": 1,
+      "verifier": {
+        "model": "muse-spark-1.3",
+        "confidence": 8,
+        "reason": "[13] directly states loose pants that slide easily without fasteners, covering the unmet_need and both required features, while [15] states avoiding bending during early recovery for footwear, covering the bending part of the pain_point.",
+        "self_check": null,
+        "agrees": null
+      },
+      "evidence": [
+        {
+          "id": 13,
+          "text": "One patient wants loose comfortable pants that slide easily without fasteners.",
+          "url": "https://community.breastcancer.org/forum/82/topics/858805"
+        },
+        {
+          "id": 15,
+          "text": "One patient wants comfortable slip-on shoes that avoid bending during early recovery.",
+          "url": "https://community.breastcancer.org/forum/82/topics/858805"
+        }
+      ],
+      "rank": 5,
+      "visual": {
+        "image": "/static/concepts/concept-5.webp?v=1793728431",
+        "feature_check": {
+          "features": [
+            {
+              "name": "pull-on waistband",
+              "visible": true
+            },
+            {
+              "name": "loose leg cut",
+              "visible": true
+            }
+          ],
+          "all_visible": true,
+          "attempts": 1
+        }
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "title": "Seatbelt Cushion Pad for Driving",
+      "reason": "required_features check failed: 'seatbelt loop' is not traceable \u2013 signals only mention soft chest protection/cushion to ease seatbelt discomfort/pressure, with no mention of a loop or attachment.",
+      "evidence_count": 2,
+      "verifier_model": "muse-spark-1.3",
+      "self_check": null,
+      "agrees": null
+    }
+  ]
+}

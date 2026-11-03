@@ -55,6 +55,26 @@
   .stat .num{font:700 1.9rem 'IBM Plex Mono',monospace;color:var(--teal)}
   .stat .lab{font-size:.82rem;color:var(--slate)}
 
+  .tracesec{margin-top:8px}
+  .livebar{display:flex;align-items:center;gap:10px;color:var(--mist);font-size:.9rem;margin:0 0 12px;min-height:1.4em}
+  .livebar[hidden]{display:none}
+  .pulse{width:9px;height:9px;border-radius:50%;background:var(--amber);animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+  .trace{position:relative;padding-left:28px}
+  .trace::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:repeating-linear-gradient(to bottom,var(--teal) 0 6px,transparent 6px 11px);opacity:.55}
+  .ev{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:10px;animation:evin .45s ease both}
+  .ev::before{content:"";position:absolute;left:-25px;top:18px;width:10px;height:10px;border-radius:50%;background:var(--teal);border:2px solid var(--navy)}
+  .ev.bad::before{background:var(--bad)}
+  @keyframes evin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .ev h3{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;color:var(--white);font-size:.98rem;font-weight:600}
+  .ev p{font-size:.86rem;color:var(--slate);margin-top:4px}
+  .ev p.strong{color:var(--mist)}
+  .badge{flex-shrink:0;font:600 .7rem 'IBM Plex Mono',monospace;letter-spacing:.5px;border:1px solid;border-radius:10px;padding:2px 9px;text-transform:uppercase}
+  .badge.keep{border-color:var(--teal);color:var(--teal)}
+  .badge.rej{border-color:var(--bad);color:var(--bad)}
+  .ideas{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .idea{border:1px solid var(--deep);border-radius:14px;padding:3px 11px;font-size:.78rem;color:var(--mist)}
+  .xcheck{margin-top:16px;padding:12px 16px;background:var(--card);border:1px solid var(--deep);border-radius:10px;font-size:.88rem;color:var(--mist);max-width:820px}
   h2{color:var(--white);font-weight:600;font-size:1.5rem;margin:40px 0 6px}
   .sub{color:var(--slate);font-size:.92rem;margin-bottom:20px;max-width:760px}
 
@@ -137,6 +157,8 @@
     html{scroll-behavior:auto}
     *{transition:none!important}
     .thread{animation:none;opacity:.75}
+    .ev{animation:none}
+    .pulse{animation:none;opacity:1}
     .js .reveal{opacity:1;transform:none}
   }
 </style>
@@ -151,25 +173,34 @@
   <section class="hero">
     <div class="eyebrow"><i></i><span id="cond">Post-mastectomy</span></div>
     <h1>What should adaptive brands build next?</h1>
-    <p class="lede">Muse Spark proposes product opportunities from real patient comments, a second pass tries to disprove each one, and Muse Image draws what survives. Every claim traces back to its source.</p>
+    <p class="lede">Muse Spark proposes product opportunities from notes on public patient forum posts, an independent open-weight model (Muse Spark Open, on Baseten) tries to disprove each one, and Muse Image draws what survives. Every claim traces back to its source.</p>
     <div class="runrow">
-      <button class="cta" id="runBtn" type="button">Re-run analysis</button>
+      <button class="cta" id="runBtn" type="button">Run the agent live</button>
       <div class="bar" id="bar" aria-hidden="true"><span id="barFill"></span></div>
       <div class="status" id="status" role="status" aria-live="polite"></div>
     </div>
     <ol class="steps">
       <li><b><span class="n">1</span>Propose</b><span class="d">Muse Spark reads the signals and proposes opportunities.</span></li>
-      <li><b><span class="n">2</span>Verify</b><span class="d">A second pass checks each claim against only its cited comments.</span></li>
+      <li><b><span class="n">2</span>Verify</b><span class="d">Muse Spark Open, an open-weight model on Baseten, checks each claim against only its cited notes.</span></li>
       <li><b><span class="n">3</span>Score</b><span class="d">Code scores evidence, source spread, and verifier confidence.</span></li>
       <li><b><span class="n">4</span>Visualize</b><span class="d">Muse Image draws the concept, Muse Spark checks its features.</span></li>
     </ol>
     <div class="stats" id="stats"></div>
+    <p class="xcheck" id="xcheck" hidden></p>
+  </section>
+
+  <section class="tracesec" id="traceSection" hidden>
+    <div class="eyebrow"><i></i>Agent run</div>
+    <h2 style="margin-top:0">Watch the models work</h2>
+    <p class="sub" id="traceSub"></p>
+    <div class="livebar" id="livebar" hidden><span class="pulse"></span><span id="livemsg"></span></div>
+    <div class="trace" id="trace" aria-live="polite"></div>
   </section>
 
   <section class="mapsec" id="mapSection" hidden>
     <div class="eyebrow"><i></i>Signal map</div>
     <h2 style="margin-top:0">Where each opportunity comes from</h2>
-    <p class="sub">Every dot is one patient comment, grouped by the forum thread it came from. Pick an opportunity and watch its evidence pull together. Hover a highlighted dot to read the comment.</p>
+    <p class="sub">Every dot is one note, written in our own words from a public patient forum post and grouped by the thread it came from. Pick an opportunity and watch its evidence pull together. Hover a highlighted dot to read the note.</p>
     <div class="sels" id="sels" role="group" aria-label="Choose an opportunity to show on the map"></div>
     <div class="mapwrap" id="mapwrap">
       <div id="map"></div>
@@ -183,20 +214,21 @@
 
   <section>
     <h2>Ranked opportunities</h2>
-    <p class="sub" id="ranksub">Ranked by evidence score. Open any card to read the source comments.</p>
+    <p class="sub" id="ranksub">Ranked by evidence score. Open any card to read the notes behind it.</p>
     <div id="list"></div>
   </section>
 
   <section id="rejSection" hidden>
     <h2>Rejected by the verifier</h2>
-    <p class="sub">Proposed by the first pass, but the cited comments did not support them.</p>
+    <p class="sub">Proposed by the first pass, but the cited notes did not support them.</p>
     <div id="rej"></div>
   </section>
 </main>
 
 <footer><div class="wrap">
-  <p><b>How the score works.</b> Out of 100: evidence (up to 40, from distinct cited comments), source spread (up to 30, from distinct forum threads), and verifier confidence (up to 30). The model never assigns the score itself.</p>
-  <p><b>Data.</b> Short excerpts from public patient forums, collected by hand during the hackathon, with a link to each source thread. Threadline Discovery supports product decisions for brand teams. It does not give medical advice.</p>
+  <p><b>How the score works.</b> Out of 100: evidence (up to 40, from distinct cited notes), source spread (up to 30, from distinct forum threads), and verifier confidence (up to 30). The model never assigns the score itself.</p>
+  <p><b>Data.</b> The notes are written in our own words from public patient forum posts read during the hackathon. No post text is reproduced here, and each note links to its source thread. Threadline Discovery supports product decisions for brand teams. It does not give medical advice.</p>
+  <p><b>Models.</b> Muse Spark and Muse Image run through Meta Model API. The verification stage runs Muse Spark Open, an open-weight Muse model, on Baseten partner inference.</p>
   <p id="meta" class="mono"></p>
 </div></footer>
 
@@ -219,6 +251,42 @@ function sv(tag, props) {
   Object.entries(props || {}).forEach(([k, v]) => { if (k === 'text') n.textContent = v; else n.setAttribute(k, v); });
   return n;
 }
+function modelLabel(m) {
+  return /muse-spark-open/.test(m || '') ? 'Muse Spark Open (open weights, via Baseten)' : 'Muse Spark';
+}
+function evNode(e) {
+  const box = el('div', {class: 'ev' + (e.type === 'verdict' && !e.kept ? ' bad' : '')});
+  if (e.type === 'reading') {
+    box.appendChild(el('h3', {text: 'Reading the notes'}));
+    box.appendChild(el('p', {text: e.signals + ' notes from public patient forum posts across ' + e.threads + ' threads.'}));
+  } else if (e.type === 'proposed') {
+    box.appendChild(el('h3', {text: 'Muse Spark proposed ' + e.count + ' ideas'}));
+    const wrap = el('div', {class: 'ideas'});
+    (e.ideas || []).forEach((i) => wrap.appendChild(el('span', {class: 'idea', text: i.title})));
+    box.appendChild(wrap);
+  } else if (e.type === 'verdict') {
+    box.appendChild(el('h3', {}, [document.createTextNode(e.title), el('span', {class: 'badge ' + (e.kept ? 'keep' : 'rej'), text: e.kept ? 'Kept' : 'Rejected'})]));
+    if (e.model) box.appendChild(el('p', {class: 'strong', text: 'Checked by ' + modelLabel(e.model) + ': ' + (e.kept ? 'supported' : 'not supported') + ' (' + e.confidence + '/10)'}));
+    if (e.self_supported !== null && e.self_supported !== undefined) {
+      box.appendChild(el('p', {text: 'Muse Spark (Meta Model API) ' + (e.agrees ? 'agreed.' : 'disagreed and said ' + (e.self_supported ? 'supported' : 'not supported') + '.')}));
+    }
+    box.appendChild(el('p', {text: e.reason}));
+  } else if (e.type === 'image') {
+    box.appendChild(el('h3', {text: 'Muse Image drew a concept: ' + e.title}));
+    box.appendChild(el('p', {text: e.ok ? (e.all_visible ? 'Muse Spark confirmed every required feature is visible.' : 'Some required features could not be confirmed in the image.') + (e.attempts > 1 ? ' It redrew once after the first check.' : '') : 'The image could not be generated.'}));
+  } else if (e.type === 'done') {
+    box.appendChild(el('h3', {text: 'Run complete'}));
+    box.appendChild(el('p', {class: 'strong', text: e.verified + ' of ' + e.proposed + ' ideas survived verification. ' + e.rejected + ' rejected.'}));
+  } else { return null; }
+  return box;
+}
+function renderTrace(events, live) {
+  const box = $('trace'); box.replaceChildren();
+  (events || []).forEach((e) => { const n = evNode(e); if (n) { n.style.animation = 'none'; box.appendChild(n); } });
+  $('traceSection').hidden = !(events && events.length) && !live;
+  $('traceSub').textContent = live ? 'Live: each step appears as it happens.' : 'The trace of the last run. Press the amber button to watch the agent run live.';
+}
+let liveShown = 0;
 function safeUrl(u) { return /^https?:\/\//i.test(u || '') ? u : null; }
 
 /* ---------- reveal + count-up ---------- */
@@ -297,7 +365,7 @@ function buildMap(index, data) {
   const {pos, labels} = layout(index);
   MAP.pos = pos;
   const svg = sv('svg', {viewBox: '0 0 ' + MAP.W + ' ' + MAP.H, role: 'img',
-    'aria-label': 'Map of source comments grouped by forum thread. Choose an opportunity above to see which comments support it.'});
+    'aria-label': 'Map of source notes grouped by forum thread. Choose an opportunity above to see which notes support it.'});
   labels.forEach((l) => svg.appendChild(sv('text', {class: 'clabel', x: l.x, y: l.y, text: l.text})));
   MAP.lines = sv('g'); svg.appendChild(MAP.lines);
   const tg = sv('g'); tg.setAttribute('transform', 'translate(880,' + MAP.H / 2 + ')');
@@ -358,14 +426,14 @@ function selectOpp(rank) {
     MAP.lines.appendChild(path); i += 1;
   });
   const threads = new Set([...cited.keys()].map((id) => (MAP.pos[id] || {}).url));
-  $('mapsum').textContent = cited.size + ' comments from ' + threads.size + ' threads support "' + opp.title + '" (score ' + opp.score + '/100).';
+  $('mapsum').textContent = cited.size + ' notes from ' + threads.size + ' threads support "' + opp.title + '" (score ' + opp.score + '/100).';
 }
 
 function tipHtml(id) {
   const p = MAP.pos[id], e = MAP.cited && MAP.cited.get(id);
   const box = $('tip'); box.replaceChildren();
   box.appendChild(el('b', {text: (p ? p.label : 'Source') + (e ? ' | cited' : ' | not cited here')}));
-  box.appendChild(document.createTextNode(e ? e.text : 'Select another opportunity to see whether this comment supports it.'));
+  box.appendChild(document.createTextNode(e ? e.text : 'Select another opportunity to see whether this note supports it.'));
 }
 function showTip(id, ev) { tipHtml(id); $('tip').classList.add('show'); moveTip(ev); }
 function moveTip(ev) {
@@ -403,6 +471,7 @@ function card(o, w) {
   }
   const evId = 'ev-' + o.rank;
   const evBox = el('div', {class: 'evidence', id: evId});
+  evBox.appendChild(el('p', {class: 'vnote', text: 'Notes written in our own words from public posts. Follow a link to read the original.'}));
   (o.evidence || []).forEach((e) => {
     const q = el('div', {class: 'quote'}, [el('div', {}, [el('span', {class: 'qid', text: '[' + e.id + ']'}), document.createTextNode(e.text)])]);
     const u = safeUrl(e.url);
@@ -410,11 +479,11 @@ function card(o, w) {
     evBox.appendChild(q);
   });
   const btn = el('button', {class: 'link', type: 'button', 'aria-expanded': 'false', 'aria-controls': evId,
-    text: 'Show evidence (' + (o.evidence_count || 0) + ' comments)'});
+    text: 'Show evidence (' + (o.evidence_count || 0) + ' notes)'});
   btn.addEventListener('click', () => {
     const open = evBox.classList.toggle('open');
     btn.setAttribute('aria-expanded', String(open));
-    btn.textContent = (open ? 'Hide evidence (' : 'Show evidence (') + (o.evidence_count || 0) + ' comments)';
+    btn.textContent = (open ? 'Hide evidence (' : 'Show evidence (') + (o.evidence_count || 0) + ' notes)';
   });
   const mapBtn = el('button', {class: 'link', type: 'button', text: 'Show on map'});
   mapBtn.addEventListener('click', () => {
@@ -443,7 +512,11 @@ function card(o, w) {
       text: (f.visible ? 'Visible: ' : 'Not confirmed: ') + f.name})));
     right.appendChild(el('div', {class: 'field'}, [el('h3', {text: 'Concept feature check by Muse Spark'}), chips]));
   }
-  right.appendChild(el('p', {class: 'vnote', text: 'Verifier (' + o.verifier.confidence + '/10): ' + o.verifier.reason}));
+  right.appendChild(el('p', {class: 'vnote', text: 'Verified by ' + modelLabel(o.verifier.model) + ' (' + o.verifier.confidence + '/10): ' + o.verifier.reason}));
+  if (o.verifier.self_check) {
+    const sc = o.verifier.self_check;
+    right.appendChild(el('p', {class: 'vnote', text: 'Cross-check: Muse Spark (Meta Model API) ' + (o.verifier.agrees ? 'reached the same verdict.' : 'disagreed and said ' + (sc.supported ? 'supported' : 'not supported') + '.')}));
+  }
   right.appendChild(el('div', {class: 'btnrow'}, [btn, mapBtn]));
   right.appendChild(evBox);
   const art = el('article', {class: 'opp'}, [vis, right]);
@@ -464,12 +537,19 @@ function render(d) {
   }
   const rej = $('rej'); rej.replaceChildren();
   (d.rejected || []).forEach((r) => {
-    rej.appendChild(el('details', {class: 'rej'}, [el('summary', {text: r.title}), el('p', {text: r.reason})]));
+    const who = r.verifier_model ? ' (rejected by ' + modelLabel(r.verifier_model) + (r.self_check && r.agrees === false ? '; Muse Spark had said ' + (r.self_check.supported ? 'supported' : 'not supported') : '') + ')' : '';
+    rej.appendChild(el('details', {class: 'rej'}, [el('summary', {text: r.title}), el('p', {text: r.reason + who})]));
   });
   $('rejSection').hidden = !(d.rejected && d.rejected.length);
+  const cc = d.cross_check, xc = $('xcheck');
+  if (cc && cc.enabled && cc.compared) {
+    xc.textContent = 'Cross-check: two Meta models checked each other. Muse Spark Open (open weights, via Baseten) and Muse Spark (Meta Model API) reached the same verdict on ' + cc.agreed + ' of ' + cc.compared + ' opportunities.';
+    xc.hidden = false;
+  } else { xc.hidden = true; }
   const m = d.models || {};
   $('meta').textContent = d.generated_at ? ('Last run ' + new Date(d.generated_at).toLocaleString() +
-    ' | text and vision: ' + (m.text_and_vision || '') + ' | image: ' + (m.image || '')) : '';
+    ' | proposer: ' + (m.text_and_vision || '') + ' | verifier: ' + (m.open_weights_verifier || m.text_and_vision || '') + ' | image: ' + (m.image || '')) : '';
+  if (!timer) renderTrace(d.trace, false);
   if (INDEX && d.opportunities && d.opportunities.length) buildMap(INDEX, d); else $('mapSection').hidden = true;
 }
 
@@ -497,8 +577,12 @@ function setBusy(on, msg, pct) {
 async function poll() {
   try {
     const s = await (await fetch('/api/status')).json();
-    if (s.status === 'running') { setBusy(true, s.message, s.pct); return; }
+    const evs = s.events || [];
+    for (let i = liveShown; i < evs.length; i++) { const n = evNode(evs[i]); if (n) $('trace').appendChild(n); }
+    liveShown = evs.length;
+    if (s.status === 'running') { setBusy(true, s.message, s.pct); $('livemsg').textContent = s.message; return; }
     clearInterval(timer); timer = null;
+    $('livebar').hidden = true;
     if (s.status === 'error') { setBusy(false, 'The run failed, showing the last saved results. ' + (s.error || '')); return; }
     setBusy(false, 'Done. Results updated.'); await load();
   } catch (e) { /* keep polling */ }
@@ -508,11 +592,14 @@ $('runBtn').addEventListener('click', async () => {
   const r = await fetch('/api/run', {method: 'POST'});
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { setBusy(false, j.error || 'Could not start a run.'); return; }
-  timer = setInterval(poll, 2000);
+  liveShown = 0; $('trace').replaceChildren(); $('livebar').hidden = false; $('livemsg').textContent = 'Starting';
+  renderTrace([], true);
+  $('traceSection').scrollIntoView({behavior: REDUCED ? 'auto' : 'smooth', block: 'start'});
+  timer = setInterval(poll, 1000);
 });
 $('replay').addEventListener('click', replay);
 load();
-fetch('/api/status').then((r) => r.json()).then((s) => { if (s.status === 'running') { setBusy(true, s.message, s.pct); timer = setInterval(poll, 2000); } }).catch(() => {});
+fetch('/api/status').then((r) => r.json()).then((s) => { if (s.status === 'running') { setBusy(true, s.message, s.pct); liveShown = 0; $('trace').replaceChildren(); $('livebar').hidden = false; renderTrace([], true); timer = setInterval(poll, 1000); } }).catch(() => {});
 </script>
 </body>
 </html>
