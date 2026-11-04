@@ -173,7 +173,7 @@
   <section class="hero">
     <div class="eyebrow"><i></i><span id="cond">Post-mastectomy</span></div>
     <h1>What should adaptive brands build next?</h1>
-    <p class="lede">Muse Spark proposes product opportunities from notes on public patient forum posts, an independent open-weight model (Muse Spark Open, on Baseten) tries to disprove each one, and Muse Image draws what survives. Every claim traces back to its source.</p>
+    <p class="lede">Muse Spark proposes product opportunities from notes on public patient forum posts, a second Meta model, independent of the first, tries to disprove each one, and Muse Image draws what survives. Every claim traces back to its source.</p>
     <div class="runrow">
       <button class="cta" id="runBtn" type="button">Run the agent live</button>
       <div class="bar" id="bar" aria-hidden="true"><span id="barFill"></span></div>
@@ -181,7 +181,7 @@
     </div>
     <ol class="steps">
       <li><b><span class="n">1</span>Propose</b><span class="d">Muse Spark reads the signals and proposes opportunities.</span></li>
-      <li><b><span class="n">2</span>Verify</b><span class="d">Muse Spark Open, an open-weight model on Baseten, checks each claim against only its cited notes.</span></li>
+      <li><b><span class="n">2</span>Verify</b><span class="d">A second Meta model checks each claim against only its cited notes.</span></li>
       <li><b><span class="n">3</span>Score</b><span class="d">Code scores evidence, source spread, and verifier confidence.</span></li>
       <li><b><span class="n">4</span>Visualize</b><span class="d">Muse Image draws the concept, Muse Spark checks its features.</span></li>
     </ol>
@@ -228,7 +228,7 @@
 <footer><div class="wrap">
   <p><b>How the score works.</b> Out of 100: evidence (up to 40, from distinct cited notes), source spread (up to 30, from distinct forum threads), and verifier confidence (up to 30). The model never assigns the score itself.</p>
   <p><b>Data.</b> The notes are written in our own words from public patient forum posts read during the hackathon. No post text is reproduced here, and each note links to its source thread. Threadline Discovery supports product decisions for brand teams. It does not give medical advice.</p>
-  <p><b>Models.</b> Muse Spark and Muse Image run through Meta Model API. The verification stage runs Muse Spark Open, an open-weight Muse model, on Baseten partner inference.</p>
+  <p id="modelsline"><b>Models.</b> Muse Spark and Muse Image run through Meta Model API.</p>
   <p id="meta" class="mono"></p>
 </div></footer>
 
@@ -251,8 +251,11 @@ function sv(tag, props) {
   Object.entries(props || {}).forEach(([k, v]) => { if (k === 'text') n.textContent = v; else n.setAttribute(k, v); });
   return n;
 }
-function modelLabel(m) {
-  return /muse-spark-open/.test(m || '') ? 'Muse Spark Open (open weights, via Baseten)' : 'Muse Spark';
+function modelLabel(v) {
+  v = v || {};
+  if (v.open_weights) return 'Muse Spark Open (open weights, via ' + v.provider + ')';
+  if (/wonder/.test(v.model || '')) return 'Muse Wonder';
+  return 'Muse Spark';
 }
 function evNode(e) {
   const box = el('div', {class: 'ev' + (e.type === 'verdict' && !e.kept ? ' bad' : '')});
@@ -266,7 +269,7 @@ function evNode(e) {
     box.appendChild(wrap);
   } else if (e.type === 'verdict') {
     box.appendChild(el('h3', {}, [document.createTextNode(e.title), el('span', {class: 'badge ' + (e.kept ? 'keep' : 'rej'), text: e.kept ? 'Kept' : 'Rejected'})]));
-    if (e.model) box.appendChild(el('p', {class: 'strong', text: 'Checked by ' + modelLabel(e.model) + ': ' + (e.kept ? 'supported' : 'not supported') + ' (' + e.confidence + '/10)'}));
+    if (e.model) box.appendChild(el('p', {class: 'strong', text: 'Checked by ' + modelLabel(e) + ': ' + (e.kept ? 'supported' : 'not supported') + ' (' + e.confidence + '/10)'}));
     if (e.self_supported !== null && e.self_supported !== undefined) {
       box.appendChild(el('p', {text: 'Muse Spark (Meta Model API) ' + (e.agrees ? 'agreed.' : 'disagreed and said ' + (e.self_supported ? 'supported' : 'not supported') + '.')}));
     }
@@ -512,7 +515,7 @@ function card(o, w) {
       text: (f.visible ? 'Visible: ' : 'Not confirmed: ') + f.name})));
     right.appendChild(el('div', {class: 'field'}, [el('h3', {text: 'Concept feature check by Muse Spark'}), chips]));
   }
-  right.appendChild(el('p', {class: 'vnote', text: 'Verified by ' + modelLabel(o.verifier.model) + ' (' + o.verifier.confidence + '/10): ' + o.verifier.reason}));
+  right.appendChild(el('p', {class: 'vnote', text: 'Verified by ' + modelLabel(o.verifier) + ' (' + o.verifier.confidence + '/10): ' + o.verifier.reason}));
   if (o.verifier.self_check) {
     const sc = o.verifier.self_check;
     right.appendChild(el('p', {class: 'vnote', text: 'Cross-check: Muse Spark (Meta Model API) ' + (o.verifier.agrees ? 'reached the same verdict.' : 'disagreed and said ' + (sc.supported ? 'supported' : 'not supported') + '.')}));
@@ -537,18 +540,24 @@ function render(d) {
   }
   const rej = $('rej'); rej.replaceChildren();
   (d.rejected || []).forEach((r) => {
-    const who = r.verifier_model ? ' (rejected by ' + modelLabel(r.verifier_model) + (r.self_check && r.agrees === false ? '; Muse Spark had said ' + (r.self_check.supported ? 'supported' : 'not supported') : '') + ')' : '';
+    const who = r.verifier_model ? ' (rejected by ' + modelLabel({model: r.verifier_model, provider: r.provider, open_weights: r.open_weights}) + (r.self_check && r.agrees === false ? '; Muse Spark had said ' + (r.self_check.supported ? 'supported' : 'not supported') : '') + ')' : '';
     rej.appendChild(el('details', {class: 'rej'}, [el('summary', {text: r.title}), el('p', {text: r.reason + who})]));
   });
   $('rejSection').hidden = !(d.rejected && d.rejected.length);
   const cc = d.cross_check, xc = $('xcheck');
   if (cc && cc.enabled && cc.compared) {
-    xc.textContent = 'Cross-check: two Meta models checked each other. Muse Spark Open (open weights, via Baseten) and Muse Spark (Meta Model API) reached the same verdict on ' + cc.agreed + ' of ' + cc.compared + ' opportunities.';
+    xc.textContent = 'Cross-check: two Meta models checked each other. ' + modelLabel(cc) + ' and Muse Spark (Meta Model API) reached the same verdict on ' + cc.agreed + ' of ' + cc.compared + ' opportunities.';
     xc.hidden = false;
   } else { xc.hidden = true; }
+  const ml = $('modelsline');
+  let line = 'Muse Spark and Muse Image run through Meta Model API.';
+  if (cc && cc.enabled && cc.open_weights) line += ' The verification stage runs Muse Spark Open, an open-weight Muse model, on ' + cc.provider + ' partner inference.';
+  else if (cc && cc.enabled) line += ' The verification stage runs Muse Wonder, a second Meta model, through Meta Model API.';
+  else line += ' In the last run, Muse Spark alone did the verification.';
+  ml.replaceChildren(el('b', {text: 'Models. '}), document.createTextNode(line));
   const m = d.models || {};
   $('meta').textContent = d.generated_at ? ('Last run ' + new Date(d.generated_at).toLocaleString() +
-    ' | proposer: ' + (m.text_and_vision || '') + ' | verifier: ' + (m.open_weights_verifier || m.text_and_vision || '') + ' | image: ' + (m.image || '')) : '';
+    ' | proposer: ' + (m.text_and_vision || '') + ' | verifier: ' + (m.verifier || m.text_and_vision || '') + ' | image: ' + (m.image || '')) : '';
   if (!timer) renderTrace(d.trace, false);
   if (INDEX && d.opportunities && d.opportunities.length) buildMap(INDEX, d); else $('mapSection').hidden = true;
 }

@@ -30,8 +30,15 @@ CONCEPT_DIR = BASE / "static" / "concepts"
 
 TEXT_MODEL = "muse-spark-1.3"
 IMAGE_MODEL = "muse-image-1.0"
-OPEN_MODEL = "meta-models/muse-spark-open-1026"   # open-weight Muse model, hosted by Baseten
-OPEN_BASE_URL = "https://inference.baseten.co/v1"
+# Second verifier, tried in this order: Muse Spark Open (open weights) on a hosted partner,
+# then Muse Wonder (a different hosted Meta model), then Muse Spark checking its own work.
+OPEN_PROVIDERS = [
+    {"name": "Baseten", "env": "BASETEN_API_KEY", "url": "https://inference.baseten.co/v1",
+     "model": "meta-models/muse-spark-open-1026"},
+    {"name": "Fireworks", "env": "FIREWORKS_API_KEY", "url": "https://api.fireworks.ai/inference/v1",
+     "model": "accounts/fireworks/models/muse-spark-open"},
+]
+SECOND_MODEL = "muse-wonder-1.0"   # independent hosted Meta model, same Meta Model API key
 OPEN_MAX_TOKENS = 6000    # Muse Spark Open always reasons, so leave room for the final answer
 OPEN_REASONING = "medium"
 CONDITION = "post-mastectomy"
@@ -139,7 +146,7 @@ def _extract_json(text):
     return json.loads(text[start:end + 1])
 
 
-def ask(system, user, name, schema, retries=2, image_data_url=None):
+def ask(system, user, name, schema, retries=2, image_data_url=None, model=None):
     """Call Muse Spark and return parsed JSON. First try is schema-constrained,
     later tries fall back to a plain JSON-only instruction."""
     content = user
@@ -153,7 +160,7 @@ def ask(system, user, name, schema, retries=2, image_data_url=None):
                 msgs = [{"role": "system", "content": system},
                         {"role": "user", "content": content}]
                 r = client().chat.completions.create(
-                    model=TEXT_MODEL, messages=msgs,
+                    model=model or TEXT_MODEL, messages=msgs,
                     response_format={"type": "json_schema",
                                      "json_schema": {"name": name, "schema": schema}})
             else:
@@ -161,7 +168,7 @@ def ask(system, user, name, schema, retries=2, image_data_url=None):
                         "no prose and no code fences: " + json.dumps(schema))
                 msgs = [{"role": "system", "content": hint},
                         {"role": "user", "content": content}]
-                r = client().chat.completions.create(model=TEXT_MODEL, messages=msgs)
+                r = client().chat.completions.create(model=model or TEXT_MODEL, messages=msgs)
             return _extract_json(r.choices[0].message.content)
         except Exception as e:  # network, schema, or parse problem
             last = e
@@ -170,19 +177,28 @@ def ask(system, user, name, schema, retries=2, image_data_url=None):
     raise RuntimeError(f"model call '{name}' failed: {last}")
 
 
-_open_client = None
+_open_clients = {}
 
 
-def open_client():
-    """Client for Muse Spark Open on Baseten, or None when BASETEN_API_KEY is not set."""
-    global _open_client
-    if _open_client is None and os.environ.get("BASETEN_API_KEY"):
-        _open_client = OpenAI(base_url=OPEN_BASE_URL, api_key=os.environ["BASETEN_API_KEY"])
-    return _open_client
+def open_providers():
+    """Open-weight providers whose API key is set, in priority order. Set OPEN_PROVIDER
+    (for example to Fireworks) in .env to force one."""
+    chosen = os.environ.get("OPEN_PROVIDER", "").strip().lower()
+    found = [pv for pv in OPEN_PROVIDERS if os.environ.get(pv["env"])]
+    if chosen:
+        found = [pv for pv in found if pv["name"].lower() == chosen] or found
+    return found
 
 
-def ask_open(system, user, name, schema, required, retries=2):
-    """Call Muse Spark Open (open weights) through Baseten partner inference.
+def _open_client(provider):
+    if provider["name"] not in _open_clients:
+        _open_clients[provider["name"]] = OpenAI(base_url=provider["url"],
+                                                 api_key=os.environ[provider["env"]])
+    return _open_clients[provider["name"]]
+
+
+def ask_open(provider, system, user, name, schema, required, retries=2):
+    """Call Muse Spark Open (open weights) through a hosted partner provider.
     The model always reasons and does not enforce JSON schemas, so the prompt demands
     JSON, the reply is validated, and each retry allows more tokens for reasoning."""
     hint = (system + "\nReply with ONLY a JSON object matching this schema, no prose and "
@@ -190,8 +206,8 @@ def ask_open(system, user, name, schema, required, retries=2):
     last = None
     for attempt in range(retries + 1):
         try:
-            r = open_client().chat.completions.create(
-                model=OPEN_MODEL,
+            r = _open_client(provider).chat.completions.create(
+                model=provider["model"],
                 messages=[{"role": "system", "content": hint},
                           {"role": "user", "content": user}],
                 max_tokens=OPEN_MAX_TOKENS * (attempt + 1),
@@ -205,9 +221,9 @@ def ask_open(system, user, name, schema, required, retries=2):
             return data
         except Exception as e:
             last = e
-            print(f"  open-weight retry {attempt + 1}/{retries + 1}: {str(e)[:140]}", flush=True)
+            print(f"  {provider['name']} retry {attempt + 1}/{retries + 1}: {str(e)[:140]}", flush=True)
             time.sleep(1.5 * (attempt + 1))
-    raise RuntimeError(f"open-weight call '{name}' failed: {last}")
+    raise RuntimeError(f"{provider['name']} call '{name}' failed: {last}")
 
 
 def load_signals():
@@ -368,10 +384,11 @@ def run(progress=None, with_images=True):
 
     verified, rejected = [], []
     compared = agreed = 0
-    use_open = open_client() is not None
+    providers = open_providers()
+    used = {}   # (model, provider, open_weights) -> number of opportunities it checked
+    down = set()  # providers that failed once are skipped for the rest of the run
     for k, opp in enumerate(proposed, 1):
-        label = " with Muse Spark Open on Baseten" if use_open else ""
-        step("verify", f"Challenging opportunity {k} of {len(proposed)}{label}",
+        step("verify", f"Challenging opportunity {k} of {len(proposed)}",
              15 + int(45 * k / max(len(proposed), 1)))
         cited = [by_id[i] for i in dict.fromkeys(opp.get("evidence_ids", [])) if i in by_id]
         if not cited:
@@ -391,38 +408,57 @@ def run(progress=None, with_images=True):
         v_self = ask(VERIFY_SYSTEM, user_msg, "verification", VERIFY_SCHEMA)
         self_check = {"supported": bool(v_self["supported"]),
                       "confidence": int(v_self["confidence"]), "reason": str(v_self["reason"])}
-        # independent opinion: Muse Spark Open (open weights) on Baseten
-        v_open = None
-        if use_open:
+        # independent opinion: Muse Spark Open (open weights) on a partner, else Muse Wonder
+        v_second, who = None, None
+        for prov in providers:
+            if prov["name"] in down:
+                continue
             try:
-                raw = ask_open(VERIFY_SYSTEM, user_msg, "verification", VERIFY_SCHEMA,
+                raw = ask_open(prov, VERIFY_SYSTEM, user_msg, "verification", VERIFY_SCHEMA,
                                ["supported", "confidence", "reason"])
-                v_open = {"supported": bool(raw["supported"]),
-                          "confidence": int(raw["confidence"]), "reason": str(raw["reason"])}
+                v_second = {"supported": bool(raw["supported"]),
+                            "confidence": int(raw["confidence"]), "reason": str(raw["reason"])}
+                who = {"model": prov["model"], "provider": prov["name"], "open_weights": True}
+                break
             except Exception as e:
-                print("  open-weight verifier unavailable, using Muse Spark verdict:",
-                      str(e)[:140], flush=True)
-        final = v_open or self_check
-        final_model = OPEN_MODEL if v_open else TEXT_MODEL
+                down.add(prov["name"])
+                print(f"  {prov['name']} unavailable, skipping it from now on:", str(e)[:140], flush=True)
+        if v_second is None and "wonder" not in down:
+            try:
+                raw = ask(VERIFY_SYSTEM, user_msg, "verification", VERIFY_SCHEMA, model=SECOND_MODEL)
+                v_second = {"supported": bool(raw["supported"]),
+                            "confidence": int(raw["confidence"]), "reason": str(raw["reason"])}
+                who = {"model": SECOND_MODEL, "provider": "Meta Model API", "open_weights": False}
+            except Exception as e:
+                down.add("wonder")
+                print("  Muse Wonder unavailable, using the Muse Spark verdict:", str(e)[:140], flush=True)
+        final = v_second or self_check
+        who = who or {"model": TEXT_MODEL, "provider": "Meta Model API", "open_weights": False}
         agrees = None
-        if v_open:
+        if v_second:
             compared += 1
-            agrees = v_open["supported"] == self_check["supported"]
+            agrees = v_second["supported"] == self_check["supported"]
             agreed += int(agrees)
+            key = (who["model"], who["provider"], who["open_weights"])
+            used[key] = used.get(key, 0) + 1
         score, parts, n, threads = compute_score(opp, by_id, final["confidence"])
-        record = {"model": final_model, "confidence": final["confidence"],
-                  "reason": final["reason"], "self_check": self_check if v_open else None,
+        record = {"model": who["model"], "provider": who["provider"],
+                  "open_weights": who["open_weights"], "confidence": final["confidence"],
+                  "reason": final["reason"], "self_check": self_check if v_second else None,
                   "agrees": agrees}
         verdict = {"type": "verdict", "title": opp["title"], "kept": bool(final["supported"]),
-                   "model": final_model, "confidence": final["confidence"], "reason": final["reason"],
-                   "self_supported": self_check["supported"] if v_open else None, "agrees": agrees,
+                   "model": who["model"], "provider": who["provider"],
+                   "open_weights": who["open_weights"], "confidence": final["confidence"],
+                   "reason": final["reason"],
+                   "self_supported": self_check["supported"] if v_second else None, "agrees": agrees,
                    "evidence": n}
         step("verify", f"{'Kept' if final['supported'] else 'Rejected'}: {opp['title']}",
              15 + int(45 * k / max(len(proposed), 1)), verdict)
         if not final["supported"]:
             rejected.append({"title": opp["title"], "reason": final["reason"], "evidence_count": n,
-                             "verifier_model": final_model,
-                             "self_check": self_check if v_open else None, "agrees": agrees})
+                             "verifier_model": who["model"], "provider": who["provider"],
+                             "open_weights": who["open_weights"],
+                             "self_check": self_check if v_second else None, "agrees": agrees})
             continue
         opp.update({
             "score": score, "score_parts": parts,
@@ -450,14 +486,16 @@ def run(progress=None, with_images=True):
     step("done", f"{len(verified)} of {len(proposed)} opportunities survived verification", 100,
          {"type": "done", "proposed": len(proposed), "verified": len(verified),
           "rejected": len(rejected)})
+    top = max(used, key=used.get) if used else None
     out = {
         "trace": events,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "condition": CONDITION,
         "models": {"text_and_vision": TEXT_MODEL, "image": IMAGE_MODEL,
-                   "open_weights_verifier": OPEN_MODEL if use_open else None},
-        "cross_check": {"enabled": use_open, "model": OPEN_MODEL if use_open else None,
-                        "provider": "Baseten" if use_open else None,
+                   "verifier": top[0] if top else TEXT_MODEL},
+        "cross_check": {"enabled": bool(used), "model": top[0] if top else None,
+                        "provider": top[1] if top else None,
+                        "open_weights": top[2] if top else False,
                         "compared": compared, "agreed": agreed},
         "signal_count": len(signals),
         "thread_count": thread_count,
